@@ -1,86 +1,193 @@
 #include <iostream>
 #include <string>
-#include <unordered_map>
 #include <vector>
+#include <fstream>
+#include <sstream>
+#include <algorithm>
 
 using namespace std;
 
-// Struct to hold details
+// Struct to hold Pokémon details
 struct Pokemon {
-    string name;
-    vector<string> types;
-    vector<pair<string, int>> pastEvolutions;  // old evolutions and levels
-    vector<pair<string, int>> futureEvolutions; // future evolutions and levels
+    int number; // Pokédex number
+    string name; // Pokémon name
 };
 
-// Function to display details
+// Function to display Pokémon details
 void displayPokemon(const Pokemon& p) {
+    cout << "Number: " << p.number << endl;
     cout << "Name: " << p.name << endl;
+}
 
-    cout << "Types: ";
-    for (const string& type : p.types) {
-        cout << type << " ";
+// Function to load Pokédex from a file
+bool loadPokedex(const string& filename, vector<Pokemon>& pokedex) {
+    ifstream file(filename);
+    if (!file.is_open()) {
+        cerr << "Error: Could not open file " << filename << endl;
+        return false;
     }
-    cout << endl;
 
-    if (!p.pastEvolutions.empty()) {
-        cout << "Past Evolutions: ";
-        for (const auto& evo : p.pastEvolutions) {
-            cout << evo.first << " (Level " << evo.second << ") ";
+    string line;
+    while (getline(file, line)) {
+        // Skip empty lines
+        if (line.empty()) continue;
+
+        vector<string> fields;
+        stringstream ss(line);
+        string field;
+
+        while (getline(ss, field, ',')) {
+            fields.push_back(field);
         }
-        cout << endl;
-    }
-    else {
-        cout << "Past Evolutions: None" << endl;
+
+        if (fields.size() != 2) {
+            cerr << "Warning: Incorrect format in line: " << line << endl;
+            continue; // Skip malformed lines
+        }
+
+        Pokemon p;
+        try {
+            p.number = stoi(fields[0]); // Parse number
+        }
+        catch (invalid_argument&) {
+            cerr << "Warning: Invalid number in line: " << line << endl;
+            continue;
+        }
+
+        p.name = fields[1]; // Parse name
+        pokedex.push_back(p);
     }
 
-    if (!p.futureEvolutions.empty()) {
-        cout << "Future Evolutions: ";
-        for (const auto& evo : p.futureEvolutions) {
-            cout << evo.first << " (Level " << evo.second << ") ";
+    file.close();
+    return true;
+}
+
+// Bubble Sort: Sorts the Pokédex by Pokémon name in ascending order
+void bubbleSort(vector<Pokemon>& pokedex) {
+    int n = pokedex.size();
+    bool swapped;
+    for (int i = 0; i < n - 1; ++i) {
+        swapped = false;
+        for (int j = 0; j < n - i - 1; ++j) {
+            if (pokedex[j].name > pokedex[j + 1].name) {
+                swap(pokedex[j], pokedex[j + 1]);
+                swapped = true;
+            }
         }
-        cout << endl;
-    }
-    else {
-        cout << "Future Evolutions: None" << endl;
+        if (!swapped) break; // If no two elements were swapped, break
     }
 }
 
+// Binary Search: Searches for a Pokémon by name in the sorted Pokédex
+int binarySearch(const vector<Pokemon>& pokedex, const string& target) {
+    int left = 0;
+    int right = pokedex.size() - 1;
+
+    while (left <= right) {
+        int mid = left + (right - left) / 2;
+        if (pokedex[mid].name == target) {
+            return mid; // Found
+        }
+        else if (pokedex[mid].name < target) {
+            left = mid + 1;
+        }
+        else {
+            right = mid - 1;
+        }
+    }
+    return -1; // Not found
+}
+
 int main() {
-    // Create the Pokédex
-    unordered_map<int, Pokemon> pokedex = {
-        {1, {"Bulbasaur", {"Grass", "Poison"}, {}, {{"Ivysaur", 16}}}},
-        {2, {"Ivysaur", {"Grass", "Poison"}, {{"Bulbasaur", 16}}, {{"Venusaur", 32}}}},
-        {3, {"Venusaur", {"Grass", "Poison"}, {{"Ivysaur", 32}}, {}}},
-        {4, {"Charmander", {"Fire"}, {}, {{"Charmeleon", 16}}}},
-        {5, {"Charmeleon", {"Fire"}, {{"Charmander", 16}}, {{"Charizard", 36}}}},
-        {6, {"Charizard", {"Fire", "Flying"}, {{"Charmeleon", 36}}, {}}},
-        {7, {"Squirtle", {"Water"}, {}, {{"Wartortle", 16}}}},
-        {8, {"Wartortle", {"Water"}, {{"Squirtle", 16}}, {{"Blastoise", 36}}}},
-        {9, {"Blastoise", {"Water"}, {{"Wartortle", 36}}, {}}},
-        {10, {"Caterpie", {"Bug"}, {}, {{"Metapod", 7}}}},
-        {11, {"Metapod", {"Bug"}, {{"Caterpie", 7}}, {{"Butterfree", 10}}}},
-        {12, {"Butterfree", {"Bug", "Flying"}, {{"Metapod", 10}}, {}}},
-        {13, {"Weedle", {"Bug", "Poison"}, {}, {{"Kakuna", 7}}}},
-        {14, {"Kakuna", {"Bug", "Poison"}, {{"Weedle", 7}}, {{"Beedrill", 10}}}},
-        {15, {"Beedrill", {"Bug", "Poison"}, {{"Kakuna", 10}}, {}}},
-        {16, {"Pidgey", {"Normal", "Flying"}, {}, {{"Pidgeotto", 18}}}},
-        {17, {"Pidgeotto", {"Normal", "Flying"}, {{"Pidgey", 18}}, {{"Pidgeot", 36}}}},
-        {18, {"Pidgeot", {"Normal", "Flying"}, {{"Pidgeotto", 36}}, {}}},
-        // Continue adding Pokémon up to 151...
-    };
+    vector<Pokemon> pokedex;
+    string filename = "pokedex.txt";
 
-    int number;
+    if (!loadPokedex(filename, pokedex)) {
+        return 1; // Exit if loading failed
+    }
+
+    bubbleSort(pokedex);
+
     cout << "Welcome to the Pokedex!" << endl;
-    cout << "Enter a Pokemon number (1-151): ";
-    cin >> number;
 
-    if (pokedex.find(number) != pokedex.end()) {
-        displayPokemon(pokedex[number]);
-    }
-    else {
-        cout << "Pokemon not found in the Pokedex!" << endl;
+    bool continueSearching = true;
+    while (continueSearching) {
+        int choice = 0;
+        while (true) { // Loop until a valid choice is made
+            cout << "How would you like to search for a Pokemon?" << endl;
+            cout << "1. By Number" << endl;
+            cout << "2. By Name" << endl;
+            cout << "Enter your choice (1 or 2): ";
+
+            if (cin >> choice && (choice == 1 || choice == 2)) {
+                break; // Exit the loop on a valid numeric choice
+            }
+            else {
+                cout << "Invalid input! Please enter 1 or 2." << endl;
+                cin.clear(); // Clear the error flag on cin
+                cin.ignore(numeric_limits<streamsize>::max(), '\n'); // Discard invalid input
+            }
+        }
+
+        if (choice == 1) {
+            int number;
+            while (true) { // Validate number input
+                cout << "Enter a Pokémon number (1-151): ";
+                if (cin >> number && number >= 1 && number <= 151) {
+                    break; // Exit loop if valid number is entered
+                }
+                else {
+                    cout << "Invalid input! Please enter a number between 1 and 151." << endl;
+                    cin.clear(); // Clear the error flag on cin
+                    cin.ignore(numeric_limits<streamsize>::max(), '\n'); // Discard invalid input
+                }
+            }
+
+            bool found = false;
+            for (const auto& p : pokedex) {
+                if (p.number == number) {
+                    displayPokemon(p);
+                    found = true;
+                    break;
+                }
+            }
+
+            if (!found) {
+                cout << "Pokémon not found in the Pokédex!" << endl;
+            }
+        }
+        else if (choice == 2) {
+            string name;
+            cin.ignore(); // Clear the input buffer
+            while (true) { // Validate name input
+                cout << "Enter the Pokémon name: ";
+                getline(cin, name);
+                if (!name.empty() && isalpha(name[0])) { // Ensure name starts with a letter
+                    break;
+                }
+                else {
+                    cout << "Invalid input! Please enter a valid Pokémon name." << endl;
+                }
+            }
+
+            int index = binarySearch(pokedex, name);
+
+            if (index != -1) {
+                displayPokemon(pokedex[index]);
+            }
+            else {
+                cout << "Pokémon not found in the Pokédex!" << endl;
+            }
+        }
+
+        // Ask if the user wants to search again
+        cout << "Would you like to search for another Pokémon? (y/n): ";
+        char response;
+        cin >> response;
+        cin.ignore(); // Clear the newline from the buffer
+        continueSearching = (response == 'y' || response == 'Y');
     }
 
+    cout << "Thank you for using the Pokedex! Goodbye!" << endl;
     return 0;
 }
